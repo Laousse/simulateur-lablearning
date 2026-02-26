@@ -28,7 +28,7 @@
 /* HEADER */
 .sw-header{background:linear-gradient(145deg,var(--g0) 0%,var(--g1) 55%,var(--g2) 100%);border-radius:var(--r) var(--r) 0 0;padding:32px 28px 28px;text-align:center;position:relative;overflow:hidden;}
 .sw-header::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 70% at 80% -20%,rgba(107,200,141,.12) 0%,transparent 70%);pointer-events:none;}
-.sw-logo{height:36px;margin:0 auto 14px;display:block;position:relative;}
+.sw-logo{height:52px;margin:0 auto 16px;display:block;position:relative;}
 .sw-htitle{font-family:var(--font-head);font-size:clamp(18px,4vw,22px);font-weight:800;color:#fff;line-height:1.3;margin-bottom:6px;position:relative;}
 .sw-htitle em{color:var(--acc);font-style:normal}
 .sw-hsub{font-size:13px;color:rgba(255,255,255,.55);position:relative;line-height:1.5;}
@@ -694,17 +694,30 @@ ${[['Nom',`${d.civ} ${d.pre} ${d.nom}`],['Email',`<a href="mailto:${d.email}">${
 <hr><p style="color:#5f7368;font-size:11px">Simulateur public Lab Learning — ${now}</p>
 </body></html>`;
 
-  let errors=[];
+  // Send prospect email
+  let mailOk=0;
   try{
-    const r1=await fetch(EMAIL_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sender:SENDER,to:[{email:d.email,name:`${d.pre} ${d.nom}`}],subject:`Votre analyse de formation personnalisée — Lab Learning`,htmlContent:prospectHtml})});
-    if(!r1.ok){const t=await r1.text();errors.push('Prospect: '+r1.status+' '+t);}
-  }catch(e){errors.push('Prospect: '+e.message);}
+    console.log('📧 Envoi mail prospect à:',d.email);
+    const body1={sender:SENDER,to:[{email:d.email,name:`${d.pre} ${d.nom}`}],subject:`Votre analyse de formation personnalisée — Lab Learning`,htmlContent:prospectHtml};
+    const r1=await fetch(EMAIL_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body1)});
+    const t1=await r1.text();
+    console.log('📧 Prospect response:',r1.status,t1);
+    if(r1.ok) mailOk++;
+  }catch(e){console.error('📧 Prospect error:',e);}
+
+  // Send internal email
   try{
-    const r2=await fetch(EMAIL_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sender:SENDER,to:[{email:SENDER.email}],subject:`🔔 Prospect: ${d.pre} ${d.nom} — ${actLabel} — ${fmtN(d.totalCost)}€ — Restant: ${fmtN(d.budgetRestant)}€`,htmlContent:internalHtml})});
-    if(!r2.ok){const t=await r2.text();errors.push('Interne: '+r2.status+' '+t);}
-  }catch(e){errors.push('Interne: '+e.message);}
-  if(errors.length===0){toast('✅ Analyse envoyée par email !','ok');}
-  else{console.error('Email errors:',errors);toast('⚠️ Erreur envoi email — résultat affiché ci-dessous','err');}
+    console.log('📧 Envoi mail interne à:',SENDER.email);
+    const body2={sender:SENDER,to:[{email:SENDER.email}],subject:`🔔 Prospect: ${d.pre} ${d.nom} — ${actLabel} — ${fmtN(d.totalCost)}€ — Restant: ${fmtN(d.budgetRestant)}€`,htmlContent:internalHtml};
+    const r2=await fetch(EMAIL_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body2)});
+    const t2=await r2.text();
+    console.log('📧 Interne response:',r2.status,t2);
+    if(r2.ok) mailOk++;
+  }catch(e){console.error('📧 Interne error:',e);}
+
+  if(mailOk===2) toast('✅ Analyse envoyée par email !','ok');
+  else if(mailOk===1) toast('⚠️ Un email sur deux a été envoyé — vérifiez vos spams','err');
+  else toast('⚠️ Erreur envoi email — résultat affiché ci-dessous','err');
   document.getElementById('btnSubmit').classList.remove('btn-loading');document.getElementById('btnSubmit').textContent='Recevoir mon analyse complète par email';
 }
 
