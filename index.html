@@ -565,7 +565,7 @@ function updCoverage(){
 
   // Session split message for 8+ participants (HCR & RR)
   const sessionEl=document.getElementById('sessionMsg');
-  if(S.sel.size>0&&S.nb>=8&&(S.act==='hcr'||S.act==='restauration_rapide')){
+  if(S.sel.size>0&&S.nb>=7&&(S.act==='hcr'||S.act==='restauration_rapide')){
     sessionEl.classList.remove('hidden');
     sessionEl.innerHTML=`<div class="ibox session"><div class="ibox-i">👥</div><div><strong>${S.nb} participants</strong> — Pour garantir la qualité de la formation et son bon déroulement, celle-ci pourra être organisée en plusieurs sessions. Votre conseiller vous précisera l'organisation lors de votre échange.</div></div>`;
   } else {
