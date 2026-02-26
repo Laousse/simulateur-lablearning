@@ -154,6 +154,7 @@
 .ibox.info{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
 .ibox.suc{background:var(--suc-bg);border-color:var(--suc-bd);color:#1a5c35}
 .ibox.warn{background:var(--warn-bg);border-color:#e8c94a;color:#6b4e0a}
+.ibox.session{background:#fef3e2;border-color:#f5d78e;color:#6b4e0a}
 .ibox-i{font-size:16px;flex-shrink:0;line-height:1.4;}
 .elig-msg{padding:14px 16px;border-radius:var(--r-sm);font-size:13px;font-weight:700;border:1.5px solid;animation:fadeIn .4s ease;}
 .elig-msg.step1{background:var(--suc-bg);border-color:var(--suc-bd);color:#1a5c35}
@@ -236,6 +237,7 @@
       <div class="sw-q">📚 Choisissez vos formations</div>
       <div class="sw-qsub">Tarifs pour une intervention sur site, déplacement du formateur inclus.</div>
       <div id="selCounter" class="sel-counter"></div>
+      <div id="sessionMsg" class="hidden"></div>
       <div class="scroll-area" id="fList"></div>
       <div class="sw-nav">
         <button class="btn btn-g" onclick="prev()">← Retour</button>
@@ -475,6 +477,8 @@ function restart(){
   // Reset step 3
   document.getElementById('fList').innerHTML='';
   document.getElementById('selCounter').innerHTML='';
+  document.getElementById('sessionMsg').classList.add('hidden');
+  document.getElementById('sessionMsg').innerHTML='';
   document.getElementById('btn3').disabled=true;
   // Reset step 4
   ['c_civ','c_pre','c_nom','c_email','c_phone'].forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.classList.remove('err');}});
@@ -558,6 +562,17 @@ function updCoverage(){
   const used=getTotalCost(),opcoName=CFG[S.act]?.opco||'OPCO';
   if(S.sel.size>0) document.getElementById('selCounter').innerHTML=`Vous avez sélectionné <strong>${S.sel.size} formation${S.sel.size>1?'s':''}</strong> · Total : <strong>${fmt(used)}</strong> potentiellement financés`;
   else document.getElementById('selCounter').innerHTML='';
+
+  // Session split message for 8+ participants (HCR & RR)
+  const sessionEl=document.getElementById('sessionMsg');
+  if(S.sel.size>0&&S.nb>=8&&(S.act==='hcr'||S.act==='restauration_rapide')){
+    sessionEl.classList.remove('hidden');
+    sessionEl.innerHTML=`<div class="ibox session"><div class="ibox-i">👥</div><div><strong>${S.nb} participants</strong> — Pour garantir la qualité de la formation et son bon déroulement, celle-ci pourra être organisée en plusieurs sessions. Votre conseiller vous précisera l'organisation lors de votre échange.</div></div>`;
+  } else {
+    sessionEl.classList.add('hidden');
+    sessionEl.innerHTML='';
+  }
+
   S.sel.forEach(id=>{const slot=document.getElementById('fb_'+id);if(slot) slot.innerHTML=`<div class="f-badge ok">✅ Potentiellement finançable via votre ${opcoName}</div>`;});
   (CATA[S.act]||[]).forEach(f=>{if(!S.sel.has(f.id)){const slot=document.getElementById('fb_'+f.id);if(slot)slot.innerHTML='';}});
 }
@@ -679,11 +694,17 @@ ${[['Nom',`${d.civ} ${d.pre} ${d.nom}`],['Email',`<a href="mailto:${d.email}">${
 <hr><p style="color:#5f7368;font-size:11px">Simulateur public Lab Learning — ${now}</p>
 </body></html>`;
 
+  let errors=[];
   try{
-    await fetch(EMAIL_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sender:SENDER,to:[{email:d.email,name:`${d.pre} ${d.nom}`}],subject:`Votre analyse de formation personnalisée — Lab Learning`,htmlContent:prospectHtml})});
-    await fetch(EMAIL_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sender:SENDER,to:[{email:SENDER.email}],subject:`🔔 Prospect: ${d.pre} ${d.nom} — ${actLabel} — ${fmtN(d.totalCost)}€ — Restant: ${fmtN(d.budgetRestant)}€`,htmlContent:internalHtml})});
-    toast('✅ Analyse envoyée par email !','ok');
-  }catch(e){toast('Résultat affiché — vérifiez votre connexion pour l\'email.','err');}
+    const r1=await fetch(EMAIL_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sender:SENDER,to:[{email:d.email,name:`${d.pre} ${d.nom}`}],subject:`Votre analyse de formation personnalisée — Lab Learning`,htmlContent:prospectHtml})});
+    if(!r1.ok){const t=await r1.text();errors.push('Prospect: '+r1.status+' '+t);}
+  }catch(e){errors.push('Prospect: '+e.message);}
+  try{
+    const r2=await fetch(EMAIL_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sender:SENDER,to:[{email:SENDER.email}],subject:`🔔 Prospect: ${d.pre} ${d.nom} — ${actLabel} — ${fmtN(d.totalCost)}€ — Restant: ${fmtN(d.budgetRestant)}€`,htmlContent:internalHtml})});
+    if(!r2.ok){const t=await r2.text();errors.push('Interne: '+r2.status+' '+t);}
+  }catch(e){errors.push('Interne: '+e.message);}
+  if(errors.length===0){toast('✅ Analyse envoyée par email !','ok');}
+  else{console.error('Email errors:',errors);toast('⚠️ Erreur envoi email — résultat affiché ci-dessous','err');}
   document.getElementById('btnSubmit').classList.remove('btn-loading');document.getElementById('btnSubmit').textContent='Recevoir mon analyse complète par email';
 }
 
